@@ -108,9 +108,9 @@ const companies = [
 ];
 
 // 1
-const companiesMap = companies.reduce(function (accumulator, company) {
-  accumulator[company.id] = company;
-  return accumulator;
+const companiesMap = companies.reduce(function (companyDictionary, company) {
+  companyDictionary[company.id] = company;
+  return companyDictionary;
 }, {});
 
 function getCompanyById(id) {
@@ -121,42 +121,42 @@ console.log(getCompanyById(4));
 
 // 2
 function getMostCommonJobs() {
-  const jobCounts = employees.reduce(function (accumulator, employee) {
-    accumulator[employee.job] = (accumulator[employee.job] || 0) + 1;
-    return accumulator;
+  const jobCounts = employees.reduce(function (employeesDictionary, employee) {
+    employeesDictionary[employee.job] ??= 0;
+    employeesDictionary[employee.job] += 1;
+    return employeesDictionary;
   }, {});
 
   // Find maximum frequency
   const maxCount = Math.max(...Object.values(jobCounts));
 
-  return Object.entries(jobCounts)
-    .filter(function ([_, count]) {
-      return count === maxCount;
-    })
-    .map(function ([job]) {
-      return job;
-    });
+  return Object.entries(jobCounts).reduce((result, [job, count]) => {
+    if (count === maxCount) {
+      result.push(job);
+    }
+    return result;
+  }, []);
 }
 
 console.log(getMostCommonJobs());
 
 // 3
 function getCompaniesWithEmployees() {
-  const employeesByCompany = employees.reduce((accumulator, employee) => {
-    if (!accumulator[employee.companyId]) {
-      accumulator[employee.companyId] = [];
+  const employeesByCompany = employees.reduce((employeesDictionary, employee) => {
+    if (!employeesDictionary[employee.companyId]) {
+      employeesDictionary[employee.companyId] = [];
     }
-    accumulator[employee.companyId].push(employee);
-    return accumulator;
+    employeesDictionary[employee.companyId].push(employee);
+    return employeesDictionary;
   }, {});
 
   return Object.entries(employeesByCompany).reduce(
-    (accumulator, [companyId, companyEmployees]) => {
+    (companiesList, [companyId, companyEmployees]) => {
       const company = companiesMap[companyId];
       if (company) {
-        accumulator[company.name] = companyEmployees;
+        companiesList[company.name] = companyEmployees;
       }
-      return accumulator;
+      return companiesList;
     },
     {},
   );
@@ -165,25 +165,22 @@ function getCompaniesWithEmployees() {
 console.log(getCompaniesWithEmployees());
 
 // 4
-function getTopManager(employeeId) {
-  const employeesMap = employees.reduce((accumulator, employee) => {
-    accumulator[employee.id] = employee;
-    return accumulator;
-  }, {});
-
-  let currentEmployee = employeesMap[employeeId];
-
-  if (!currentEmployee) {
-    return null;
+function getTopManager(employeeId, employeesMap = null) {
+  if (!employeesMap) {
+    employeesMap = employees.reduce((employeesDictionary, employee) => {
+      employeesDictionary[employee.id] = employee;
+      return employeesDictionary;
+    }, {});
   }
 
-  while (currentEmployee.managerId !== null) {
-    currentEmployee = employeesMap[currentEmployee.managerId];
+  const currentEmployee = employeesMap[employeeId];
+
+  if (!currentEmployee || currentEmployee.managerId === null) {
+    return currentEmployee || null;
   }
 
-  return currentEmployee;
+  return getTopManager(currentEmployee.managerId, employeesMap);
 }
-
 console.log(getTopManager(32));
 
 //5
@@ -195,9 +192,9 @@ console.log(getDirectEmployeesByManager(10));
 
 //6
 function getEmployeesGroupedByManagers(employeesList) {
-  const employeesMap = employeesList.reduce((accumulator, employee) => {
-    accumulator[employee.id] = { ...employee, employees: [] };
-    return accumulator;
+  const employeesMap = employeesList.reduce((employeesDictionary, employee) => {
+    employeesDictionary[employee.id] = { ...employee, employees: [] };
+    return employeesDictionary;
   }, {});
 
   employeesList.forEach((employee) => {
@@ -209,11 +206,14 @@ function getEmployeesGroupedByManagers(employeesList) {
     }
   });
 
-  return employeesList
-    .filter((employee) => employee.managerId === null)
-    .map((manager) => employeesMap[manager.id]);
+  return employees.reduce((topLevelEmployees, employee) => {
+    if (employee.managerId === null) {
+      topLevelEmployees.push(employeesMap[employee.id]);
+    }
+    return topLevelEmployees;
+  }, []);
 }
-
+console.log('6th task')
 console.log(getEmployeesGroupedByManagers(employees));
 
 // 7
@@ -236,15 +236,16 @@ const getWords = (product) => {
 };
 
 // function to calculate similarity between two products
-const calculateSimilarity = (product1, product2) => {
-  const words1 = getWords(product1);
-  const words2 = getWords(product2);
+const calculateSimilarity = (productOne, productTwo) => {
+  const productOneWords = getWords(productOne);
+  const productTwoWords = getWords(productTwo);
 
   // find unique shared words
-  const sharedWords = words1.filter((word) => words2.includes(word));
+  const productTwoWordsSet = new Set(productTwoWords);
+  const sharedWords = productOneWords.filter((word) => productTwoWordsSet.has(word));
 
   // similarity based on shorter product length
-  const shorterLength = Math.min(words1.length, words2.length);
+  const shorterLength = Math.min(productOneWords.length, productTwoWords.length);
   return sharedWords.length / shorterLength;
 };
 
